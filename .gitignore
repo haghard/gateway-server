@@ -1,0 +1,16 @@
+.gradle
+libs
+classes
+test-classes
+build
+.idea
+gateway-server.iml
+gateway-server.ipr
+gateway-server.iws
+pom.xml
+.classpath
+.project
+.settings/
+/bin
+/out/
+perf-classes/
