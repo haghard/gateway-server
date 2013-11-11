@@ -1,4 +1,4 @@
 gateway-server
 ==============
 
-Http server(based on Netty4) with udp broadcasting
+Http server(based on scala + Netty4 ) with udp event broadcasting

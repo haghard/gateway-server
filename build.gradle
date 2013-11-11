@@ -1,0 +1,140 @@
+buildscript {
+  repositories {
+    mavenLocal()
+    jcenter()
+  }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'scala'
+apply plugin: 'maven'
+
+group = 'ru.gateway'
+version = '0.1'
+description = 'Http Gateway Service'
+
+repositories {
+  jcenter()
+  mavenLocal()
+}
+
+dependencies {
+  compile 'org.scala-lang:scala-library:2.10.3'
+  compile 'org.scala-lang:scala-compiler:2.10.3'
+
+  compile 'ch.qos.logback:logback-classic:1.0.13'
+  compile group: 'com.google.guava', name: 'guava', version: '15.0'
+
+  compile 'io.netty:netty-all:4.0.10.Final'
+  compile 'net.minidev:json-smart:1.2'
+
+  //testCompile 'org.scalatest:scalatest_2.10:1.9.2'
+  //testCompile group: 'org.mockito', name: 'mockito-all', version: '1.9.0'
+}
+
+sourceSets {
+  main.scala.srcDirs  'src'
+  main.resources.srcDirs  'src/resources'
+
+  test.scala.srcDirs 'test'
+  test.resources.srcDirs 'test/resources'
+
+  perf.scala.srcDir 'perf-test'
+}
+
+compilePerfScala { classpath += sourceSets.main.runtimeClasspath }
+
+sourceSets.main.output.classesDir = 'classes'
+sourceSets.test.output.classesDir = 'test-classes'
+sourceSets.perf.output.classesDir = 'perf-classes'
+
+
+task runLocalPerfTests(description: '') {
+  doLast() {
+    def dir = new File("perf-classes")
+    def classPathBuilder = new StringBuffer()
+
+    def List files = dir.listFiles().toList()
+    files.grep { File jar -> jar.name.endsWith(".jar") }
+      .each { File jar -> classPathBuilder.append("perf-classes/").append( jar.name ).append(':') }
+
+    def classPath = classPathBuilder.toString()+ "./classes"
+
+    def process = ["/bin/bash", "-s"].execute()
+    def cmd =  """fsc -shutdown && scala -cp ${classPath} perf-classes/local-benchmark.scala 8 100000"""
+    println(cmd)
+    process.withWriter { it.write(cmd) }
+    process.consumeProcessOutput(System.out, System.err)
+    def code = process.waitFor()
+    println """runPerfTests exit code ${code}"""
+  }
+}
+
+task runRemotePerfTests(description: '') {
+  doLast() {
+    def dir = new File("perf-classes")
+    def classPathBuilder = new StringBuffer()
+
+    def List files = dir.listFiles().toList()
+    files.grep { File jar -> jar.name.endsWith(".jar") }
+      .each { File jar -> classPathBuilder.append("perf-classes/").append( jar.name ).append(':') }
+
+    def classPath = classPathBuilder.toString()+ "./classes"
+
+    def process = ["/bin/bash", "-s"].execute()
+    def cmd =  """fsc -shutdown && scala -cp ${classPath} perf-classes/remote-benchmark.scala 2 10000"""
+    println(cmd)
+    process.withWriter { it.write(cmd) }
+    process.consumeProcessOutput(System.out, System.err)
+    def code = process.waitFor()
+    println """runPerfTests exit code ${code}"""
+  }
+}
+
+jar {
+  def classPath = new StringBuffer()
+  configurations.compile.each { dep -> classPath.append( dep.toString().substring( dep.toString().lastIndexOf('/') + 1) ).append(" ") }
+
+  manifest.attributes(
+    'Built-By': System.properties['user.name'],
+    'Main-Class': 'org.gateway.BootstrapService',
+    'Class-Path': classPath)
+}
+
+task copyScriptForRemoteBenchmark(type: Copy) {
+  from configurations.compile
+  from "perf-test/remote-benchmark.scala"
+  into "perf-classes"
+}
+
+
+task copyScriptForLocalBenchmark(type: Copy) {
+  from configurations.compile
+  from "perf-test/local-benchmark.scala"
+  into "perf-classes"
+}
+
+task prepareRC(type: Copy) {
+  from configurations.compile
+  from "$buildDir/libs/"
+  into "$buildDir/rc"
+}
+
+build.dependsOn prepareRC
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '1.8'
+}
+
+
+copyScriptForLocalBenchmark.dependsOn compileScala
+copyScriptForRemoteBenchmark.dependsOn compileScala
+
+runRemotePerfTests.dependsOn copyScriptForRemoteBenchmark
+runLocalPerfTests.dependsOn copyScriptForLocalBenchmark
+
+
+build.dependsOn runLocalPerfTests
+
