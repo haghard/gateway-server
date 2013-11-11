@@ -138,3 +138,4 @@ runLocalPerfTests.dependsOn copyScriptForLocalBenchmark
 
 build.dependsOn runLocalPerfTests
 
+//cd monitor && fsc -shutdown && scala -cp netty-all-4.0.10.Final.jar:../classes/ broadcast-monitor.scala
