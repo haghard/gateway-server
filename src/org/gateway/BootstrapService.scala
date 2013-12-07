@@ -22,17 +22,16 @@ object BootstrapService {
   def main(args: Array[String]) {
 
     //default args
-    val arg = ArrayBuffer[String]("localhost", "9000")
+    val defaultArgs = Array[String]("localhost", "9000")
 
     for (i <- 0 to args.length - 1) {
-      if (i > 1) {
-       logger.debug(s"unexpected argument ${args(i)}");
-      }
-      arg += args(i)
+      if (i > 1) { logger.debug(s"Max params size is 2 "); }
+      logger.debug(s"override default param: ${i} ${args(i)}")
+      defaultArgs(i) = args(i)
     }
 
-    val host = arg(0)
-    val port = arg(1) toInt
+    val host = defaultArgs(0)
+    val port = defaultArgs(1) toInt
 
     logger.debug(s" host: ${host}  port: ${port}")
 

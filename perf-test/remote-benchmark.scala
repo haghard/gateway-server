@@ -100,7 +100,7 @@ for (i <- 1 to clientsThreadNumber) {
   def jsonObject = {
     val json = new JSONObject();
     json.put("accountId", Integer.valueOf(clientId))
-    json.put("requestId", Integer.valueOf(System.currentTimeMillis().toInt))
+    json.put("requestId", java.lang.Long.valueOf(System.currentTimeMillis()))
     json.put("sectionId", Integer.valueOf(500))
     json.put("numSeats", Integer.valueOf(2))
     json.put("concertId", Integer.valueOf(321))

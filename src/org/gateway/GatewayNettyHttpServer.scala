@@ -71,23 +71,23 @@ class GatewayNettyHttpServer(val host: String,
     override def initChannel(ch: SocketChannel) {
       val pipe = ch.pipeline
 
-      clients.add(ch)
+      clients add(ch)
 
       //pipe.addLast("logger", new LoggingHandler(LogLevel.DEBUG));
 
-      pipe.addLast("http", new HttpServerCodec)
+      pipe addLast("http", new HttpServerCodec)
 
       //pipe.addLast("deflater", new HttpContentCompressor)
 
-      pipe.addLast("aggegator", new HttpObjectAggregator(512 * 1024));
+      pipe addLast("aggegator", new HttpObjectAggregator(512 * 1024));
 
       //pipe.addLast("decoder", new HttpRequestDecoder());
       //pipe.addLast("encoder", new HttpResponseEncoder());
 
-      pipe.addLast(blockingExecutor, rHandler)
+      pipe addLast(blockingExecutor, rHandler)
       //pipe.addLast("router", new RoutingHandler(router))
 
-      pipe.addLast("response-writer", new ResponseWriter)
+      pipe addLast("response-writer", new ResponseWriter)
 
       /**
        * There's no replacement for MemoryAwareThreadPoolExecutor because all handler methods in Netty 4 are
