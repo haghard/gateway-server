@@ -17,6 +17,8 @@ import io.netty.channel.ChannelHandler.Sharable
 import scala.Some
 import Reader._
 import RequestHandler._
+import scala.util.Try
+import net.minidev.json.parser.ParseException
 
 @Sharable
 class RoutingHandler(router: PartialFunction[Route, Boolean])
@@ -51,16 +53,16 @@ class RoutingHandler(router: PartialFunction[Route, Boolean])
         order match {
           case Some(_) => {
             val response = new DefaultFullHttpResponse(HTTP_1_1, OK)
-            val body = s"${Thread.currentThread()}".getBytes
-            response.content().writeBytes(body)
+            val body = s"${Thread.currentThread}".getBytes
+            response.content.writeBytes(body)
             response.headers.add("Content-Type", "text/plain")
             response.headers.add("Content-Length", body.size.toString)
             response
           }
           case None => {
             val response = new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST)
-            val body = s"${Thread.currentThread()} [this kind of request are denied]".getBytes
-            response.content().writeBytes(body)
+            val body = s"${Thread.currentThread} [this kind of request are denied/ or json parse error]".getBytes
+            response.content.writeBytes(body)
             response.headers.add("Content-Type", "text/plain")
             response.headers.add("Content-Length", body.size.toString)
             response
@@ -71,42 +73,43 @@ class RoutingHandler(router: PartialFunction[Route, Boolean])
   }
 
   def broadcast(order: Option[Order]): Reader[DefaultFullHttpRequest, Option[Order]] = {
-    reader { req: DefaultFullHttpRequest => { if (order.isDefined) outboundChannel.writeAndFlush(order.get); order } }
+    reader {
+      req: DefaultFullHttpRequest => order.map {
+        ord => outboundChannel.writeAndFlush(ord); ord
+      }
+    }
   }
 
   import Extensions._
   def domainObject(json: Option[JSONObject]): Reader[DefaultFullHttpRequest, Option[Order]] = {
-    json match {
-      case Some(j) => reader { (req: DefaultFullHttpRequest) => Some(j) }
-      case None => reader { (req: DefaultFullHttpRequest) => None }
-    }
+    json.fold(reader { (req: DefaultFullHttpRequest) => Option.empty[Order]
+      })({ j: JSONObject =>
+        reader { (req: DefaultFullHttpRequest) =>
+          Try(Option(json2Domain(j))).recover({
+            case ex: ClassCastException => logger.debug(ex.getMessage); None
+          }).getOrElse(Option.empty[Order])
+        }
+    })
   }
 
-  def jsonObject(buf: ByteBuf): Reader[DefaultFullHttpRequest, Option[JSONObject]] = reader {
-    req => {
+  def jsonObject(buf: ByteBuf): Reader[DefaultFullHttpRequest, Option[JSONObject]] = reader { req => {
       val route = parseRoute(req.getMethod.name, req.getUri)
       if (router(route)) {
         buf match {
           case direct if (!direct.hasArray) => {
-            try {
+            Try({
               val array = new Array[Byte](direct.readableBytes)
               direct.getBytes(0, array)
               val jsonObject = parser.get.parse(array).asInstanceOf[JSONObject]
               Some(jsonObject)
-            } catch {
-              case pex: net.minidev.json.parser.ParseException => {
-                logger.debug("ParseException: " + pex.getMessage)
-                None
-              }
-              case ex: Throwable => {
-                logger.debug("Throwable :" + ex.getMessage)
-                None
-              }
-            }
+            }).recover({
+              case pex: ParseException => logger.debug("ParseException: " + pex.getMessage); None
+              case ex: Exception => logger.debug("Throwable :" + ex.getMessage); None
+            }).getOrElse(None)
           }
         }
       } else {
-        //unsupported url
+        logger.debug(s"${req.getMethod.name} ${req.getUri} does not support")
         None
       }
     }
@@ -118,7 +121,9 @@ class RoutingHandler(router: PartialFunction[Route, Boolean])
       domain <- domainObject(json)
       broadcastedDomain <- broadcast(domain)
       resp <- createResponse(broadcastedDomain)
-    } yield resp
+    } yield {
+      resp
+    }
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, req: DefaultHttpRequest) {

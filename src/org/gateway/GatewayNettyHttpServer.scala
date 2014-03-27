@@ -21,7 +21,7 @@ class GatewayNettyHttpServer(val host: String,
   private val rHandler = new RoutingHandler(router)
   private val bossEventLoopGroup: EventLoopGroup = new NioEventLoopGroup(1, new NamedThreadFactory("boss"))
   private val workerEventLoopGroup: EventLoopGroup = new NioEventLoopGroup(4, new NamedThreadFactory("worker"))
-  private lazy val bootstrap: ServerBootstrap = {
+  private val bootstrap: ServerBootstrap = {
     new ServerBootstrap().group(bossEventLoopGroup, workerEventLoopGroup).
       channel(classOf[NioServerSocketChannel])
       .childHandler(new ServerInitializer(router))
@@ -59,7 +59,8 @@ class GatewayNettyHttpServer(val host: String,
       logger.debug(s"Client channel ${channel} was closed")
     }
 
-    if (channel != null) channel.close.awaitUninterruptibly()
+    if (channel != null)
+      channel.close.awaitUninterruptibly()
 
     bossEventLoopGroup.shutdownGracefully.sync()
     workerEventLoopGroup.shutdownGracefully().sync()
