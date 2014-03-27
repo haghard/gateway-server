@@ -42,7 +42,7 @@ class RoutingHandler(router: PartialFunction[Route, Boolean])
         .channel(classOf[NioDatagramChannel])
         .option(ChannelOption.SO_BROADCAST, java.lang.Boolean.TRUE)
         .handler(new Encoder(new InetSocketAddress("255.255.255.255", 9090)))
-      bootstrap.bind(0).sync().channel()
+      bootstrap.bind(0).sync.channel
     }
   }
 

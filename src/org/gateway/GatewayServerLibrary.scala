@@ -109,6 +109,11 @@ object RequestHandler {
 
 object Routes {
 
+  val router: PartialFunction[Route, Boolean] = {
+    //case Route("GET", "order", clientId) => true
+    case Route("POST", "order", clientId) => true
+  }
+
   val fail: PartialFunction[Route, Boolean] = {
     new PartialFunction[Route, Boolean] {
       def apply(v1: Route): Boolean = {
