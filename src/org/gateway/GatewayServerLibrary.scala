@@ -24,13 +24,13 @@ object Reader {
 /**
  * The reader Monad
  */
-case class Reader[-From, +To](wrapper: From => To) {
+case class Reader[-From, +To](origin: From => To) {
 
-  def apply(c: From) = wrapper(c)
+  def apply(c: From) = origin(c)
 
-  def map[ToB](transformer: To => ToB): Reader[From, ToB] = Reader(c => transformer(wrapper(c)))
+  def map[ToB](f: To => ToB): Reader[From, ToB] = Reader(c => f(origin(c)))
 
-  def flatMap[FromB <: From, ToB](f: To => Reader[FromB, ToB]): Reader[FromB, ToB] = Reader(c => f(wrapper(c))(c))
+  def flatMap[FromB <: From, ToB](f: To => Reader[FromB, ToB]): Reader[FromB, ToB] = Reader(c => f(origin(c))(c))
 }
 
 object Order {

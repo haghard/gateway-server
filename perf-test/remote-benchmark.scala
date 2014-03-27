@@ -6,7 +6,7 @@ import java.util.concurrent.locks.ReentrantLock
 import net.minidev.json.{JSONObject, JSONValue}
 import scala.collection.mutable.ArrayBuffer
 import scala.language.implicitConversions
-implicit def funToRunnable(fun: ()=> Unit) = new Runnable() { def run() = fun() }
+implicit def funToRunnable(fun: () => Unit) = new Runnable() { def run() = fun() }
 val toInt = (arg:String) => { try { Some(Integer.parseInt(arg.trim)) } catch { case e: Exception => None }}
 
 

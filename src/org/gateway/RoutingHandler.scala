@@ -22,9 +22,9 @@ import RequestHandler._
 class RoutingHandler(router: PartialFunction[Route, Boolean])
   extends SimpleChannelInboundHandler[DefaultHttpRequest](classOf[DefaultHttpRequest]) {
 
-  private lazy val bootstrap = new Bootstrap()
-  private lazy val group = new NioEventLoopGroup()
-  private lazy val outboundChannel = broadcastOutboundChannel
+  private val bootstrap = new Bootstrap()
+  private val group = new NioEventLoopGroup()
+  private val outboundChannel = broadcastOutboundChannel
   //for multithreaded cases
   private val parser = new ThreadLocal[JSONParser]() {
     override def initialValue(): JSONParser = {
@@ -124,7 +124,7 @@ class RoutingHandler(router: PartialFunction[Route, Boolean])
   override def channelRead0(ctx: ChannelHandlerContext, req: DefaultHttpRequest) {
     req match {
       case request: DefaultFullHttpRequest => {
-        ctx.fireChannelRead(reply(request.content())(request))
+        ctx.fireChannelRead(reply(request content)(request))
       }
       case _ => logger.debug("invalid http request")
     }

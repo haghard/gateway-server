@@ -10,7 +10,7 @@ import io.netty.channel._
 import io.netty.channel.socket.SocketChannel
 import org.slf4j.LoggerFactory
 import io.netty.channel.group.{DefaultChannelGroup, ChannelGroup}
-import io.netty.util.concurrent.{DefaultEventExecutorGroup, GlobalEventExecutor}
+import io.netty.util.concurrent.{ImmediateEventExecutor, DefaultEventExecutorGroup, GlobalEventExecutor}
 import io.netty.handler.logging.{LogLevel, LoggingHandler}
 
 class GatewayNettyHttpServer(val host: String,
@@ -19,7 +19,7 @@ class GatewayNettyHttpServer(val host: String,
 
   private var channel: Channel = _
   private val rHandler = new RoutingHandler(router)
-  private val bossEventLoopGroup: EventLoopGroup = new NioEventLoopGroup(2, new NamedThreadFactory("boss"))
+  private val bossEventLoopGroup: EventLoopGroup = new NioEventLoopGroup(1, new NamedThreadFactory("boss"))
   private val workerEventLoopGroup: EventLoopGroup = new NioEventLoopGroup(4, new NamedThreadFactory("worker"))
   private lazy val bootstrap: ServerBootstrap = {
     new ServerBootstrap().group(bossEventLoopGroup, workerEventLoopGroup).
@@ -29,8 +29,8 @@ class GatewayNettyHttpServer(val host: String,
   }
 
   private def logger = LoggerFactory.getLogger(classOf[GatewayNettyHttpServer])
-  private val clients: ChannelGroup = new DefaultChannelGroup("http-clients", GlobalEventExecutor.INSTANCE)
-  private val blockingExecutor = new DefaultEventExecutorGroup(1, new NamedThreadFactory("broadcaster worker"));
+  private val clients: ChannelGroup = new DefaultChannelGroup("http-clients", ImmediateEventExecutor.INSTANCE)
+  private val blockingExecutorGroup = new DefaultEventExecutorGroup(1, new NamedThreadFactory("broadcaster worker"));
 
   /**
    *
@@ -63,7 +63,7 @@ class GatewayNettyHttpServer(val host: String,
 
     bossEventLoopGroup.shutdownGracefully.sync()
     workerEventLoopGroup.shutdownGracefully().sync()
-    blockingExecutor.shutdownGracefully().sync()
+    blockingExecutorGroup.shutdownGracefully().sync()
     logger.debug("FrontEndServer was stopped")
   }
 
@@ -84,8 +84,7 @@ class GatewayNettyHttpServer(val host: String,
       //pipe.addLast("decoder", new HttpRequestDecoder());
       //pipe.addLast("encoder", new HttpResponseEncoder());
 
-      pipe addLast(blockingExecutor, rHandler)
-      //pipe.addLast("router", new RoutingHandler(router))
+      pipe addLast(blockingExecutorGroup, rHandler)
 
       pipe addLast("response-writer", new ResponseWriter)
 

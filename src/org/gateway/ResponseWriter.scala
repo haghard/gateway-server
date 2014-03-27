@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory
 
 class ResponseWriter extends ChannelInboundHandlerAdapter {
 
-  private def logger = LoggerFactory.getLogger(classOf[ResponseWriter])
+  private val logger = LoggerFactory.getLogger(classOf[ResponseWriter])
 
   override def channelRead(ctx: ChannelHandlerContext, msg: Object) {
     msg match {

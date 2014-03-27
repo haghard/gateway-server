@@ -27,7 +27,7 @@ dependencies {
   compile 'ch.qos.logback:logback-classic:1.0.13'
   compile 'com.google.guava:guava:15.0'
 
-  compile 'io.netty:netty-all:4.0.10.Final'
+  compile 'io.netty:netty-all:4.0.17.Final'
   compile 'net.minidev:json-smart:1.2'
 
   compile 'org.scala-lang.modules:scala-async_2.10:0.9.0-M4'
@@ -139,10 +139,25 @@ runRemotePerfTests.dependsOn copyScriptForRemoteBenchmark
 runLocalPerfTests.dependsOn copyScriptForLocalBenchmark
 
 
-build.dependsOn runLocalPerfTests
+build.dependsOn //runLocalPerfTests
 
-//cd monitor && fsc -shutdown && scala -cp netty-all-4.0.10.Final.jar:../classes/ broadcast-monitor.scala
+//cd monitor && fsc -shutdown && scala -cp netty-all-4.0.18.Final.jar:../classes/ broadcast-monitor.scala
 //java -server -Xmx2G -XX:MaxPermSize=756m -XX:+AggressiveOpts -jar gateway-server-0.1.jar 192.168.0.143
 
 // try to use it https://github.com/netty/netty/pull/2035
 // -Dio.netty.leakDetectionLevel=2
+
+
+
+/*
+Firefox rest client plugin
+http://192.168.0.143:9000/order/1
+
+{
+  "accountId": 1,
+  "requestId": 1395906573594,
+  "sectionId": 500,
+  "numSeats": 2,
+  "concertId": 321
+}
+*/

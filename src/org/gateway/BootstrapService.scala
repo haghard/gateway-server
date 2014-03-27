@@ -45,6 +45,7 @@ object BootstrapService {
           latch.countDown
         } catch {
           case ex: Exception => {
+            latch.countDown
             logger.debug("FrontendBootstrap was stopped with error: " + ex.getMessage)
           }
         }

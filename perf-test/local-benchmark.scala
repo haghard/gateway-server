@@ -49,7 +49,6 @@ for (i <- 1 to clientsThreadNumber) {
         val t0 = System.nanoTime();
         try {
           val content = doRequest(s"${url}${clientId}")
-          //println(s"${new java.util.Date(System.currentTimeMillis)}")
           val t1 = System.nanoTime();
           val timeUs = t1 - t0
           latencyHistogram.append(timeUs)
@@ -77,10 +76,8 @@ for (i <- 1 to clientsThreadNumber) {
 
     @throws(classOf[java.io.IOException])
     @throws(classOf[java.net.SocketTimeoutException])
-    def doRequest(url: String,
-                  connectTimeout: Int = 1000,
-                  readTimeout: Int = 1000,
-                  requestMethod: String = "POST") = {
+    def doRequest(url: String, connectTimeout: Int = 1000,
+                  readTimeout: Int = 1000, requestMethod: String = "POST") = {
       import java.net.{URL, HttpURLConnection}
       val connection = (new URL(url)).openConnection.asInstanceOf[HttpURLConnection]
       connection.setConnectTimeout(connectTimeout)
