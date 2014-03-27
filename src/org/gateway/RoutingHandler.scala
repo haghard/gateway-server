@@ -14,7 +14,6 @@ import io.netty.handler.codec.http.HttpVersion._
 import io.netty.handler.codec.http.HttpResponseStatus._
 import net.minidev.json.parser.JSONParser
 import io.netty.channel.ChannelHandler.Sharable
-import scala.Some
 import Reader._
 import RequestHandler._
 import scala.util.Try
@@ -47,73 +46,66 @@ class RoutingHandler(router: PartialFunction[Route, Boolean])
     }
   }
 
-  def createResponse(order: Option[Order]): Reader[DefaultFullHttpRequest, DefaultFullHttpResponse] = {
+  def createResponse(order: Either[String, Order]): Reader[DefaultFullHttpRequest, DefaultFullHttpResponse] = {
     reader {
       (req: DefaultFullHttpRequest) => {
-        order match {
-          case Some(_) => {
-            val response = new DefaultFullHttpResponse(HTTP_1_1, OK)
-            val body = s"${Thread.currentThread}".getBytes
-            response.content.writeBytes(body)
-            response.headers.add("Content-Type", "text/plain")
-            response.headers.add("Content-Length", body.size.toString)
-            response
-          }
-          case None => {
-            val response = new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST)
-            val body = s"${Thread.currentThread} [this kind of request are denied/ or json parse error]".getBytes
-            response.content.writeBytes(body)
-            response.headers.add("Content-Type", "text/plain")
-            response.headers.add("Content-Length", body.size.toString)
-            response
-          }
-        }
+        order.fold({ errorMessage =>
+          val response = new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST)
+          logger.debug(errorMessage);
+          val body = s"${Thread.currentThread} ${errorMessage}".getBytes
+          response.content.writeBytes(body)
+          response.headers.add("Content-Type", "text/plain")
+          response.headers.add("Content-Length", body.size.toString)
+          response
+        }, {
+         order =>
+           val response = new DefaultFullHttpResponse(HTTP_1_1, OK)
+           val body = s"${Thread.currentThread}".getBytes
+           response.content.writeBytes(body)
+           response.headers.add("Content-Type", "text/plain")
+           response.headers.add("Content-Length", body.size.toString)
+           response
+        })
       }
     }
   }
 
-  def broadcast(order: Option[Order]): Reader[DefaultFullHttpRequest, Option[Order]] = {
-    reader {
-      req: DefaultFullHttpRequest => order.map {
+  def broadcast(order: Either[String, Order]): Reader[DefaultFullHttpRequest, Either[String, Order]] = {
+    reader { req: DefaultFullHttpRequest => order.right.map {
         ord => outboundChannel.writeAndFlush(ord); ord
       }
     }
   }
 
   import Extensions._
-  def domainObject(json: Option[JSONObject]): Reader[DefaultFullHttpRequest, Option[Order]] = {
-    json.fold(reader { (req: DefaultFullHttpRequest) => Option.empty[Order]
-      })({ j: JSONObject =>
-        reader { (req: DefaultFullHttpRequest) =>
-          Try(Option(json2Domain(j))).recover({
-            case ex: ClassCastException => logger.debug(ex.getMessage); None
-          }).getOrElse(Option.empty[Order])
-        }
-    })
+  def domainObject(json: Either[String, JSONObject]): Reader[DefaultFullHttpRequest, Either[String, Order]] = {
+    reader { req: DefaultFullHttpRequest =>
+      json.right.flatMap({ js => Try(Right(json2Domain(js))).recover({
+        case ex: ClassCastException => Left(ex.getMessage)
+        case ex: Exception => Left(ex.getMessage)
+      }).get }) }
   }
 
-  def jsonObject(buf: ByteBuf): Reader[DefaultFullHttpRequest, Option[JSONObject]] = reader { req => {
-      val route = parseRoute(req.getMethod.name, req.getUri)
-      if (router(route)) {
-        buf match {
-          case direct if (!direct.hasArray) => {
-            Try({
-              val array = new Array[Byte](direct.readableBytes)
-              direct.getBytes(0, array)
-              val jsonObject = parser.get.parse(array).asInstanceOf[JSONObject]
-              Some(jsonObject)
-            }).recover({
-              case pex: ParseException => logger.debug("ParseException: " + pex.getMessage); None
-              case ex: Exception => logger.debug("Throwable :" + ex.getMessage); None
-            }).getOrElse(None)
-          }
+  def jsonObject(buf: ByteBuf): Reader[DefaultFullHttpRequest, Either[String,JSONObject]] = reader { req => {
+    val route = parseRoute(req.getMethod.name, req.getUri)
+    if (router(route)) {
+      buf match {
+        case direct if (!direct.hasArray) => {
+          Try({
+            val array = new Array[Byte](direct.readableBytes)
+            direct.getBytes(0, array)
+            val jsonObject = parser.get.parse(array).asInstanceOf[JSONObject]
+            Right(jsonObject)
+          }).recover({
+            case pex: ParseException => Left(pex.getMessage)
+            case ex: Exception => Left(ex.getMessage)
+          }).get
         }
-      } else {
-        logger.debug(s"${req.getMethod.name} ${req.getUri} does not support")
-        None
       }
+    } else {
+      Left(s"${req.getMethod.name} ${req.getUri} does not support")
     }
-  }
+  }}
 
   def reply(byteBuf: ByteBuf): Reader[DefaultFullHttpRequest, DefaultFullHttpResponse] = {
     for {
@@ -121,16 +113,14 @@ class RoutingHandler(router: PartialFunction[Route, Boolean])
       domain <- domainObject(json)
       broadcastedDomain <- broadcast(domain)
       resp <- createResponse(broadcastedDomain)
-    } yield {
-      resp
-    }
+    } yield { resp }
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, req: DefaultHttpRequest) {
     req match {
-      case request: DefaultFullHttpRequest => {
+      case request: DefaultFullHttpRequest =>
         ctx.fireChannelRead(reply(request content)(request))
-      }
+
       case _ => logger.debug("invalid http request")
     }
   }
