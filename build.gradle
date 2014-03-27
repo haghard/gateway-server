@@ -139,7 +139,7 @@ runRemotePerfTests.dependsOn copyScriptForRemoteBenchmark
 runLocalPerfTests.dependsOn copyScriptForLocalBenchmark
 
 
-build.dependsOn //runLocalPerfTests
+build.dependsOn runLocalPerfTests
 
 //cd monitor && fsc -shutdown && scala -cp netty-all-4.0.18.Final.jar:../classes/ broadcast-monitor.scala
 //java -server -Xmx2G -XX:MaxPermSize=756m -XX:+AggressiveOpts -jar gateway-server-0.1.jar 192.168.0.143
