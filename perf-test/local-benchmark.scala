@@ -1,15 +1,13 @@
 import com.google.common.collect.HashMultiset
 import java.io.{InputStream, OutputStream, OutputStreamWriter}
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.{TimeUnit, CountDownLatch}
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.locks.ReentrantLock
 import net.minidev.json.{JSONObject, JSONValue}
-import org.gateway.Routes._
-import org.gateway.{GatewayNettyHttpServer, Route}
+import org.gateway.GatewayNettyHttpServer
 import scala.collection.mutable.ArrayBuffer
-import io.netty.handler.codec.http.HttpMethod
 
-implicit def funToRunnable(fun: ()=> Unit) = new Runnable() { def run() = fun() }
+implicit def funToRunnable(fun: () => Unit) = new Runnable() { def run() = fun() }
 val toInt = (arg:String) => { try { Some(Integer.parseInt(arg.trim)) } catch { case e: Exception => None }}
 
 val server = new GatewayNettyHttpServer("localhost", 9000)
