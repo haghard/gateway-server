@@ -4,11 +4,18 @@ import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.channel._
 import io.netty.channel.socket.DatagramPacket
 import io.netty.handler.codec.MessageToMessageDecoder
-import java.lang.Throwable
 import java.net.InetSocketAddress
 import java.util.Date
 import org.gateway.Order
 
+/**
+ *
+ * How to run:
+ * cd monitor && scala -cp netty-all-4.0.21.Final.jar:../classes/ broadcast-monitor.scala
+ *
+ *
+ *
+ */
 val group = new NioEventLoopGroup();
 try {
 val bootstrap = new Bootstrap

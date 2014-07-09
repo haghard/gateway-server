@@ -1,10 +1,11 @@
 package org.gateway
 
-import scala.Array
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicInteger
 
-case class Route(method: String, path: String*)
+import io.netty.handler.codec.http.HttpMethod
+
+case class Route(method: HttpMethod, path: String*)
 
 /**
  * The companion object
@@ -104,23 +105,19 @@ object RequestHandler {
 
   private def parsePath(pathStr: String) = pathStr.trim.split('/').filter(_.length > 0)
 
-  def parseRoute(method: String, pathStr: String) = Route(method, parsePath(pathStr): _*)
+  def createRoute(method: String, pathStr: String) = Route(HttpMethod.valueOf(method), parsePath(pathStr): _*)
 }
 
 object Routes {
 
-  val router: PartialFunction[Route, Boolean] = {
-    //case Route("GET", "order", clientId) => true
-    case Route("POST", "order", clientId) => true
+  val router: PartialFunction[Route, String] = {
+    case Route(HttpMethod.POST, "order", clientId) => "order" + clientId
   }
 
-  val fail: PartialFunction[Route, Boolean] = {
-    new PartialFunction[Route, Boolean] {
-      def apply(v1: Route): Boolean = {
-        false
-      }
-
-      def isDefinedAt(x: Route): Boolean = true
+  val fail: PartialFunction[Route, String] = {
+    new PartialFunction[Route, String] {
+      def apply(v1: Route) = "dev/null"
+      def isDefinedAt(x: Route) = false
     }
   }
 }
@@ -137,4 +134,6 @@ class NamedThreadFactory(var namePrefix: String) extends ThreadFactory {
   def newThread(r: Runnable) = {
     new Thread(this.group, r, namePrefix + this.threadNumber.getAndIncrement() + ")", 0L)
   }
+
+
 }

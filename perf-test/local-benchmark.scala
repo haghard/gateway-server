@@ -1,5 +1,5 @@
 import com.google.common.collect.HashMultiset
-import java.io.OutputStreamWriter
+import java.io.{InputStream, OutputStream, OutputStreamWriter}
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import java.util.concurrent.locks.ReentrantLock
@@ -7,12 +7,12 @@ import net.minidev.json.{JSONObject, JSONValue}
 import org.gateway.Routes._
 import org.gateway.{GatewayNettyHttpServer, Route}
 import scala.collection.mutable.ArrayBuffer
+import io.netty.handler.codec.http.HttpMethod
+
 implicit def funToRunnable(fun: ()=> Unit) = new Runnable() { def run() = fun() }
 val toInt = (arg:String) => { try { Some(Integer.parseInt(arg.trim)) } catch { case e: Exception => None }}
 
-val router: PartialFunction[Route, Boolean] = { case Route("POST", "order", clientId) => true }
-
-val server = new GatewayNettyHttpServer("localhost", 9000, router.orElse(fail))
+val server = new GatewayNettyHttpServer("localhost", 9000)
 
 //default args
 val arg = Array[String]("1", "1000")
@@ -44,11 +44,12 @@ for (i <- 1 to clientsThreadNumber) {
     val threadStatistics = HashMultiset.create[String]()
 
     println(s" Client №${clientId} started ")
+
     try {
       for (x <- 1 to iterations) {
         val t0 = System.nanoTime();
         try {
-          val content = doRequest(s"${url}${clientId}")
+          val content = requestContent(s"${url}${clientId}")
           val t1 = System.nanoTime();
           val timeUs = t1 - t0
           latencyHistogram.append(timeUs)
@@ -76,33 +77,50 @@ for (i <- 1 to clientsThreadNumber) {
 
     @throws(classOf[java.io.IOException])
     @throws(classOf[java.net.SocketTimeoutException])
-    def doRequest(url: String, connectTimeout: Int = 1000,
-                  readTimeout: Int = 1000, requestMethod: String = "POST") = {
+    def requestContent(url: String, connectTimeout: Int = 1000, readTimeout: Int = 1000,
+                  requestMethod: String = "POST") = {
+
       import java.net.{URL, HttpURLConnection}
-      val connection = (new URL(url)).openConnection.asInstanceOf[HttpURLConnection]
-      connection.setConnectTimeout(connectTimeout)
-      connection.setReadTimeout(readTimeout)
-      connection.setRequestMethod(requestMethod)
 
-      connection.setDoInput(true)
-      connection.setDoOutput(true)
+      var connection: HttpURLConnection = null
+      var outputStream: OutputStream = null
+      var inputStream: InputStream = null
 
-      val outputStream = connection.getOutputStream
-      val writer = new OutputStreamWriter(outputStream)
+      try {
+        connection = (new URL(url)).openConnection.asInstanceOf[HttpURLConnection]
+        connection.setConnectTimeout(connectTimeout)
+        connection.setReadTimeout(readTimeout)
+        connection.setRequestMethod(requestMethod)
 
-      val json = jsonObject
-      JSONValue.writeJSONString(json, writer);
-      writer.flush()
-      outputStream.flush()
-      outputStream.close()
+        connection.setDoInput(true)
+        connection.setDoOutput(true)
 
-      val inputStream = connection.getInputStream
-      val content = scala.io.Source.fromInputStream(inputStream).mkString
-      if (inputStream != null) inputStream.close
-      content
+        outputStream = connection.getOutputStream
+        val writer = new OutputStreamWriter(outputStream)
+
+        JSONValue.writeJSONString(jsonObject(), writer);
+        writer.flush
+        outputStream.flush()
+
+        inputStream = connection.getInputStream
+
+        scala.io.Source.fromInputStream(inputStream).mkString
+
+      } finally {
+        if (inputStream != null) {
+          inputStream.close
+        }
+
+        if(outputStream != null)
+          outputStream.close
+
+        if(connection != null) {
+          connection.disconnect
+        }
+      }
     }
 
-    def jsonObject = {
+    def jsonObject() = {
       val json = new JSONObject();
       json.put("accountId", Integer.valueOf(clientId))
       json.put("requestId", java.lang.Long.valueOf(System.currentTimeMillis()))
@@ -136,5 +154,6 @@ for (i <- 1 to clientsThreadNumber) {
 
 latch.await
 println("all thread was shutdown")
+Thread.sleep(5000)
 server.shutdown
 

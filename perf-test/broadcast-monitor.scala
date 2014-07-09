@@ -1,10 +1,10 @@
+/*
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.channel._
 import io.netty.channel.socket.DatagramPacket
 import io.netty.handler.codec.MessageToMessageDecoder
-import java.lang.Throwable
 import java.net.InetSocketAddress
 import java.util.Date
 import org.gateway.Order
@@ -65,3 +65,4 @@ class LogEventHandler extends SimpleChannelInboundHandler[(Order, Long)] {
     println(builder.toString());
   }
 }
+*/
